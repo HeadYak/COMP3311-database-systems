@@ -1,0 +1,10 @@
+# COMP3311 20T3 Final Exam Q12
+
+(a)
+Not serializable as swapping first two transaction will cause conflict
+
+(b)
+
+
+(c)
+

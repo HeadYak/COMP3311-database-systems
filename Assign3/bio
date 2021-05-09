@@ -1,0 +1,210 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... get Name's biography/filmography
+# from datetime import datetime
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: bio 'NamePattern' [Year]"
+db = None
+input_check = True
+# process command-line args
+# startTime = datetime.now()
+argc = len(sys.argv)
+
+# manipulate database
+
+try:
+  name = ""
+  title = ""
+  db = psycopg2.connect("dbname=imdb")
+  cur = db.cursor()
+  if(argc == 1):
+    print(usage)
+  elif(argc == 2):
+    name = sys.argv[1]  
+    query = """
+    SELECT names.name, names.birth_year, names.death_year
+    FROM names 
+    WHERE names.name ~* %s
+    ORDER BY names.name, names.birth_year, names.id
+    """
+    cur.execute(query, [name])
+    entries = cur.fetchall()
+
+    if len(entries) == 0:
+      print("No name matching '" + name + "'" ) 
+    elif(len(entries) > 1):
+      print("Names matching '" + name + "'" ) 
+      print("===============")
+
+      for name,birth_year,death_year in entries:
+        if(birth_year == None and death_year == None):
+          print(name + " (???)")
+        elif(death_year == None and birth_year != None):
+          print(name + " (" + str(birth_year) + "-)")
+        elif(death_year != None and birth_year == None):
+          print(name + " (-" + str(death_year) + ")")
+        elif(death_year != None and birth_year != None):
+          print(name + " (" + str(birth_year) + "-" + str(death_year) + ")")
+    elif(len(entries) == 1):
+      for name,birth_year,death_year in entries:
+        if(birth_year == None and death_year == None):
+          print("Filmography for " + name + " (???)" ) 
+        elif(birth_year != None and death_year == None):
+          print("Filmography for " + name + " (" + str(birth_year) + "-)" ) 
+        elif(birth_year == None and death_year != None):
+          print("Filmography for " + name + " (-" + str(death_year) + ")" ) 
+        elif(birth_year != None and death_year != None):
+          print("Filmography for " + name + " (" + str(birth_year) + "-" + str(death_year) + ")") 
+        print("===============")
+      query1 = """
+      SELECT DISTINCT movies.title, movies.start_year
+      FROM movies
+      JOIN crew_roles on crew_roles.movie_id = movies.id 
+      JOIN acting_roles ON acting_roles.movie_id = movies.id
+      JOIN names on names.id = acting_roles.name_id OR names.id = crew_roles.name_id
+      JOIN principals on principals.name_id = names.id AND principals.movie_id = movies.id
+      WHERE names.name ~* %s
+      ORDER BY movies.start_year
+      """
+      # JOIN crew_roles on crew_roles.movie_id = movies.id 
+      # JOIN acting_roles ON acting_roles.movie_id = movies.id
+      # JOIN principals on principals.name_id = acting_roles.name_id AND principals.movie_id = movies.id
+      cur.execute(query1, [name])
+      entries1 = cur.fetchall()
+
+      for title, start_year in entries1:
+        print(title + " (" + str(start_year)+")" )
+        query2 = """
+        SELECT DISTINCT acting_roles.played, names.name
+        FROM movies 
+        JOIN acting_roles ON acting_roles.movie_id = movies.id
+        JOIN names on names.id = acting_roles.name_id
+        WHERE upper(movies.title) ~* %s AND names.name ~* %s
+        ORDER BY acting_roles.played ASC
+        """ 
+        cur.execute(query2, [title, name])
+        entries2 = cur.fetchall()
+
+        for played, name in entries2:
+          print(" playing " + played)
+
+        query3 = """
+        SELECT DISTINCT  names.name, crew_roles.role
+        FROM movies 
+        JOIN crew_roles ON crew_roles.movie_id = movies.id
+        JOIN names on names.id = crew_roles.name_id
+        WHERE upper(movies.title) ~* %s AND names.name ~* %s
+        ORDER BY crew_roles.role
+        """
+        cur.execute(query3, [title, name])
+        entries3 = cur.fetchall()
+
+        for name, role in entries3:
+          if(role == "archive_footage" ):
+            role = "archive footage"
+          print(" as " + role.capitalize())
+  elif(argc == 3):
+    input_check = (sys.argv[2]).isdigit()
+    if(input_check == False):
+      print(usage)
+    else:
+
+      name = sys.argv[1]  
+      year = sys.argv[2]
+      query = """
+      SELECT names.name, names.birth_year, names.death_year
+      FROM names 
+      WHERE names.name ~* %s AND names.birth_year = %s
+      ORDER BY names.name, names.birth_year, names.id
+      """
+      cur.execute(query, [name,year])
+      entries = cur.fetchall()
+
+      if len(entries) == 0:
+        print("No name matching '" + name + "'" ) 
+      elif(len(entries) > 1):
+        print("Names matching '" + name + "'" ) 
+        print("===============")
+
+        for name,birth_year,death_year in entries:
+          if(birth_year == None and death_year == None):
+            print(name + " (???)")
+          elif(death_year == None and birth_year != None):
+            print(name + " (" + str(birth_year) + "-)")
+          elif(death_year != None and birth_year == None):
+            print(name + " (-" + str(death_year) + ")")
+          elif(death_year != None and birth_year != None):
+            print(name + " (" + str(birth_year) + "-" + str(death_year) + ")")
+      elif(len(entries) == 1):
+        for name,birth_year,death_year in entries:
+          if(birth_year == None and death_year == None):
+            print("Filmography for " + name + " (???)" ) 
+          elif(birth_year != None and death_year == None):
+            print("Filmography for " + name + " (" + str(birth_year) + "-)" ) 
+          elif(birth_year == None and death_year != None):
+            print("Filmography for " + name + " (-" + str(death_year) + ")" ) 
+          elif(birth_year != None and death_year != None):
+            print("Filmography for " + name + " (" + str(birth_year) + "-" + str(death_year) + ")") 
+          print("===============")
+        query1 = """
+        SELECT DISTINCT movies.title, movies.start_year
+        FROM movies
+        JOIN crew_roles on crew_roles.movie_id = movies.id 
+        JOIN acting_roles ON acting_roles.movie_id = movies.id
+        JOIN names on names.id = acting_roles.name_id OR names.id = crew_roles.name_id
+        JOIN principals on principals.name_id = names.id AND principals.movie_id = movies.id
+        WHERE names.name ~* %s
+        ORDER BY movies.start_year
+        """
+        # JOIN crew_roles on crew_roles.movie_id = movies.id 
+        # JOIN acting_roles ON acting_roles.movie_id = movies.id
+        # JOIN principals on principals.name_id = acting_roles.name_id AND principals.movie_id = movies.id
+        cur.execute(query1, [name])
+        entries1 = cur.fetchall()
+
+        for title, start_year in entries1:
+          print(title + " (" + str(start_year)+")" )
+          query2 = """
+          SELECT DISTINCT acting_roles.played, names.name
+          FROM movies 
+          JOIN acting_roles ON acting_roles.movie_id = movies.id
+          JOIN names on names.id = acting_roles.name_id
+          WHERE upper(movies.title) ~* %s AND names.name ~* %s
+          ORDER BY acting_roles.played ASC
+          """ 
+          cur.execute(query2, [title, name])
+          entries2 = cur.fetchall()
+
+          for played, name in entries2:
+            print(" playing " + played)
+
+          query3 = """
+          SELECT DISTINCT  names.name, crew_roles.role
+          FROM movies 
+          JOIN crew_roles ON crew_roles.movie_id = movies.id
+          JOIN names on names.id = crew_roles.name_id
+          WHERE upper(movies.title) ~* %s AND names.name ~* %s
+          ORDER BY crew_roles.role
+          """
+          cur.execute(query3, [title, name])
+          entries3 = cur.fetchall()
+
+          for name, role in entries3:
+            if(role == "archive_footage" ):
+              role = "archive footage"
+            print(" as " + role.capitalize())      
+
+    # print(datetime.now() - startTime)
+  # ... add your code here ...
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+

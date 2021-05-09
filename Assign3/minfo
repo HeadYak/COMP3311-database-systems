@@ -1,0 +1,134 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about cast and crew for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: minfo 'MovieTitlePattern' [Year]"
+db = None
+pattern = ""
+# process command-line args
+
+argc = len(sys.argv)
+
+# manipulate database
+
+try:
+
+  input_check = True
+
+  db = psycopg2.connect("dbname=imdb")
+  cur = db.cursor()
+
+  if(argc == 1):
+    print(usage)
+  elif(argc == 2):
+    pattern = sys.argv[1]
+    query = "select title, start_year from movies WHERE upper(title) ~* %s ORDER BY start_year"
+    cur.execute(query, [pattern])
+    entries = cur.fetchall()
+    if len(entries) == 0:
+      print("No movie matching '" + pattern+ "'")
+    elif len(entries) == 1:
+      for title, start_year in entries:
+        print(title, '('+ str(start_year)+')')
+        print("===============")
+        print("Starring")
+        query1 = """
+        SELECT DISTINCT  names.name, acting_roles.played, principals.ordering
+        FROM movies 
+        JOIN acting_roles ON acting_roles.movie_id = movies.id
+        JOIN names on names.id = acting_roles.name_id
+        JOIN principals on principals.name_id = acting_roles.name_id AND principals.movie_id = movies.id
+        WHERE upper(movies.title) ~* %s
+        ORDER BY principals.ordering, acting_roles.played
+        """
+        cur.execute(query1, [pattern])
+        entries1 = cur.fetchall()
+        for name, played, ordering in entries1:
+          print(" " + name.strip() + " as", played.strip())
+        print("and with")
+
+        query2 = """
+        SELECT DISTINCT  names.name, crew_roles.role, principals.ordering
+        FROM movies 
+        JOIN crew_roles ON crew_roles.movie_id = movies.id
+        JOIN names on names.id = crew_roles.name_id
+        JOIN principals on principals.name_id = crew_roles.name_id AND principals.movie_id = movies.id
+        WHERE upper(movies.title) ~* %s
+        ORDER BY principals.ordering, crew_roles.role
+        """
+        cur.execute(query2, [pattern])
+        entries2 = cur.fetchall()
+        for name, role, ordering in entries2:
+          print(" " + name.strip() + ":", role.capitalize().strip())
+    elif len(entries) > 2:
+      print("Movies matching " + "'" + pattern + "'")
+      print("===============")
+      for title, start_year in entries:
+        print(title, '('+ str(start_year)+')')
+  # ... add your code here ...
+  elif(argc == 3):
+    pattern = sys.argv[1]
+    input_check = (sys.argv[2]).isdigit()
+    if(input_check == False):
+      print(usage)
+    else:
+      query3 = "select title, start_year from movies WHERE upper(title) ~* %s AND start_year = %s ORDER BY start_year, title"
+      year = sys.argv[2]
+      cur.execute(query3,[pattern,year])
+      entries3 = cur.fetchall()
+      if len(entries3) == 0:
+        print("No movie matching " + "'" + pattern + "' " + year)
+      elif(len(entries3) == 1):
+        for title, start_year in entries3:
+          print(title, '('+ str(start_year)+')')
+        print("===============")
+        print("Starring")
+        query4 = """
+        SELECT DISTINCT  names.name, acting_roles.played, principals.ordering
+        FROM movies 
+        JOIN acting_roles ON acting_roles.movie_id = movies.id
+        JOIN names on names.id = acting_roles.name_id
+        JOIN principals on principals.name_id = acting_roles.name_id AND principals.movie_id = movies.id
+        WHERE upper(movies.title) ~* %s AND start_year = %s
+        ORDER BY principals.ordering, acting_roles.played
+        """
+        cur.execute(query4, [pattern,year])
+        entries4 = cur.fetchall()
+
+        for name, played, ordering in entries4:
+          print(" " + name.strip() + " as", played.strip())
+        print("and with")
+
+        query5 = """
+        SELECT DISTINCT  names.name, crew_roles.role, principals.ordering
+        FROM movies 
+        JOIN crew_roles ON crew_roles.movie_id = movies.id
+        JOIN names on names.id = crew_roles.name_id
+        JOIN principals on principals.name_id = crew_roles.name_id AND principals.movie_id = movies.id
+        WHERE upper(movies.title) ~* %s AND start_year = %s
+        ORDER BY principals.ordering, crew_roles.role
+        """
+        cur.execute(query5, [pattern,year])
+        entries5 = cur.fetchall()
+
+        for name, role, ordering in entries5:
+          print(" " + name.strip() + ":", role.capitalize().strip())
+      elif(len(entries3) > 1):
+        print("Movies matching '" + pattern+ "' " + year)
+        print("===============")
+
+        for title, start_year in entries3:
+          print(title, '('+ str(start_year)+')')
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+

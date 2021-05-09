@@ -1,0 +1,114 @@
+#!/usr/bin/python3
+# COMP3311 20T2 Final Exam
+# Q6: discography for one group, given by Groups.id
+
+import sys
+import psycopg2
+# ... put helper functions here ...
+
+db = None
+cur = None
+usage = f"Usage: {sys.argv[0]} GroupID"
+
+# process command-line args
+
+if len(sys.argv) < 2:
+   print(usage)
+   exit(1)
+groupID = sys.argv[1]
+if not groupID.isnumeric():
+   print(usage)
+   exit(1)
+
+try:
+   length_convert = ""
+   temp = 0
+   temp1 = 0
+   db = psycopg2.connect("dbname=music")
+   cur = db.cursor()
+   query = """
+   select groups.name, groups.id
+   from groups where groups.id = %s
+   """
+   cur.execute(query, [groupID])
+   entries = cur.fetchall()
+   if len(entries) == 0:
+      print("Invalid group ID")
+   elif(len(entries) == 1):
+      for name, id in entries:
+         print("Discography for", name.strip())
+         print("--------------------")
+
+      query1 = """
+      select albums.title, albums.year, albums.genre
+      from albums
+      where albums.made_by = %s 
+      order by albums.year asc, albums.title asc
+      """
+      cur.execute(query1, [groupID])
+      entries1 = cur.fetchall()
+      temp1 = 0
+      for title, year, genre in entries1:
+         print(title, "("+str(year)+") " + "("+str(genre)+")")
+         print("--------------------")
+
+         query2 = """
+         select songs.title, songs.length, songs.trackno
+         from songs
+         join albums on songs.on_album= albums.id
+         where albums.made_by = %s and albums.title = %s
+         """
+         cur.execute(query2, [groupID, title])
+         entries2 = cur.fetchall()
+         i = 1
+         if(len(entries1) == 1):
+            for title, length, trackno in entries2:
+               if(length < 60):
+                  length_convert = "0:"+str(length)
+               else:
+                  seconds = int(length)%60
+                  mins = int(length)//60
+                  if(seconds>9):
+                     length_convert = str(mins)+":"+str(seconds)
+                  elif(seconds <= 9):
+                     length_convert = str(mins)+":0"+str(seconds)
+
+               if(i <10):
+                  print(" "+str(trackno) +". " + title + ' ('+ str(length_convert)+')')
+               elif(i>= 10):
+                  print(str(trackno) +". " + title + ' ('+ str(length_convert)+')')
+               i+=1
+            
+         elif(len(entries1) > 1):
+            temp = 1
+            for title, length, trackno in entries2:
+               if(length < 60):
+                  length_convert = "0:"+str(length)
+               else:
+                  seconds = int(length)%60
+                  mins = int(length)//60
+                  if(seconds>9):
+                     length_convert = str(mins)+":"+str(seconds)
+                  elif(seconds <= 9):
+                     length_convert = str(mins)+":0"+str(seconds)
+
+               if(trackno <10):
+                  print(" "+ str(trackno) +". " + title + ' ('+ str(length_convert)+')')
+               elif(trackno>= 10):
+                  print(str(trackno) +". " + title + ' ('+ str(length_convert)+')')
+               i+=1
+               temp+=1
+
+               if(temp == len(entries2)+1 and temp1 < len(entries1)-1):
+                  print("--------------------")
+         temp1 += 1
+   # ... your code goes here ...
+
+except psycopg2.Error as err:
+   print("DB error: ", err)
+finally:
+   if cur:
+       cur.close()
+   if db:
+      db.close()
+

@@ -1,0 +1,73 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print name, year, ratings of top N movies
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: best [N]"
+db = None
+max_movies = "select count(*) from movies"
+
+# print(max_movies)
+# process command-line args
+
+argc = len(sys.argv)
+
+if argc > 2:
+  print(usage)
+
+# manipulate database
+
+try:
+
+  
+  ##TEST CASE FOR WHEN INPUT IS NOT INTEGER
+
+  db = psycopg2.connect("dbname=imdb")
+  cur = db.cursor()
+
+  cur.execute(max_movies)
+  i = cur.fetchone()
+  # print(i[0])
+  num_entries = 0
+  input_check = True
+  if(argc == 2):
+    input_check = (sys.argv[1]).isdigit()
+
+
+
+  if(input_check == False ):
+    print(usage)
+  elif argc == 1:
+    num_entries = 10
+  elif 0 < int(sys.argv[1]) <= i[0]: 
+    num_entries = int(sys.argv[1])
+  elif(int(sys.argv[1]) > i[0]):
+    print(usage) 
+  else:
+    print(usage) 
+
+
+
+  query = "select rating, title, start_year from movies ORDER BY rating DESC, title ASC"
+  cur.execute(query)
+
+  entries = cur.fetchmany(num_entries)
+
+
+  
+  for rating, title, start_year in entries:
+    print(rating, title, '(' + str(start_year) +')'   )
+
+  # ... add your code here ...
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+

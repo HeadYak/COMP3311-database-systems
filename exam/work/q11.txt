@@ -1,0 +1,26 @@
+# COMP3311 20T3 Final Exam Q11
+
+(a)
+
+select * from R;
+
+Res(a,b,c) = R
+
+
+(b)
+select a,b from R where c < 0;
+
+Temp(a,b) = Sel[c<0](R)
+
+Res = Proj[x,z](Temp)
+Res(a,b) = Sel[c<0]R 
+
+(c)
+select a,d from R join S on (b = e) where c < 0;
+Temp(a) = Sel[c<0](R)
+
+Res(a,d) = Temp Join[b=e] T 
+(d)
+
+
+

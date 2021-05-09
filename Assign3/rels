@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about different releases for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: rels 'PartialMovieTitle'"
+db = None
+
+# process command-line args
+
+argc = len(sys.argv)
+
+# manipulate database
+
+try:
+  db = psycopg2.connect("dbname=imdb")
+  # ... add your code here ...
+  cur = db.cursor()
+  query = "select title, start_year from movies WHERE upper(title) ~* %s order by start_year, title"
+
+  #TEST CASE FOR INVALID INPUT
+  pattern = "" 
+  entries = []
+  if(argc == 1):
+    print(usage)
+  elif(argc == 2):
+    pattern = sys.argv[1]
+    cur.execute(query, [pattern])
+    entries = cur.fetchall()
+    # print (len(entries))
+    # for entry in entries:
+    #   print(entry)
+
+    if len(entries) == 0 :
+      print("No movie matching '" + pattern+ "'")
+    elif len(entries) == 1:
+    
+      query1 = """
+      SELECT aliases.local_title, aliases.region, aliases.extra_info, aliases.language
+      FROM movies
+      JOIN aliases ON movies.id=aliases.movie_id
+      WHERE upper(movies.title) ~* %s
+      ORDER BY aliases.ordering
+      """
+
+      cur.execute(query1, [pattern])
+      entries_aliase = cur.fetchall()
+
+      if(len(entries_aliase) == 0):
+        print(title, '('+ str(start_year)+')' + " has no alternative releases")
+      else:
+        for title, start_year in entries:
+          print(title, '('+ str(start_year)+')' + " was also released as")
+        for local_title, region, extra_info, language in entries_aliase:
+          if(region == None and extra_info == None  and language == None):
+            print("'" + local_title.strip() +"'")
+          elif(region == None and language and extra_info != None):
+            print("'" + local_title.strip() +"'", "(" + extra_info.strip() + ")") 
+          elif(region != None and language == None):
+            print("'" + local_title.strip() +"'", "(region: " + region.strip() + ")")
+          elif(region == None and language != None):
+            print("'" + local_title.strip() +"'", "(language: " + language.strip() + ")")  
+          elif(region != None and language != None):
+            print("'" + local_title.strip() +"'", "(region: "+region.strip() +",", "language: " + language.strip() +")" )  
+      # for local_title, region, extra_info, language in entries:
+      #   if(region == None and extra_info == None and language == None):
+      #     print(local_title) 
+    else: 
+      print("Movies matching '" + pattern+ "'")
+      print("===============")
+
+      for title, start_year in entries:
+        print(title, '('+ str(start_year)+')')
+
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+

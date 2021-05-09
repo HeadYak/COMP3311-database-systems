@@ -1,0 +1,10 @@
+# COMP3311 20T3 Final Exam Q10
+
+(a)
+Employees -> Certified
+Certified -> Aircraft
+Flights -> Airport
+
+(b)
+
+Certified ->Aircraft violates BCNF

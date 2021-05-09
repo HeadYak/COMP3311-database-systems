@@ -1,0 +1,113 @@
+#!/usr/bin/python3
+# COMP3311 20T2 Final Exam
+# Q7: tracklist for album, given by Albums.id
+#     show performers/instruments for each track
+
+import sys
+import psycopg2
+
+# ... put helper functions here ...
+
+db = None
+cur = None
+usage = f"Usage: {sys.argv[0]} AlbumID"
+
+# process command-line args
+
+if len(sys.argv) < 2:
+   print(usage)
+   exit(1)
+albumID = sys.argv[1]
+if not albumID.isnumeric():
+   print(usage)
+   exit(1)
+
+try:
+   db = psycopg2.connect("dbname=music")
+   cur = db.cursor()
+   temp1 = 0
+   query = """
+   select albums.title, albums.year,albums.genre
+   from albums
+   where albums.id = %s
+   """
+   cur.execute(query, [albumID])
+   entries = cur.fetchall()
+   if(len(entries) == 0):
+      print("Invalid album ID")
+   elif(len(entries) == 1):
+      for title, year, genre in entries:
+         print(title, "("+str(year)+")", "("+str(genre)+")")
+         print("========================================")
+      
+      query1 = """
+      select songs.trackno, songs.title
+      from songs
+      join albums on albums.id = songs.on_album
+      where albums.id = %s
+      """
+      cur.execute(query1, [albumID])
+      entries1 = cur.fetchall()
+
+      for trackno, title in entries1:
+         if(trackno <= 9):
+            print(" "+str(trackno) +". " + title)
+         elif(trackno>9):
+            print(str(trackno) +". " + title)
+
+         query2 = """
+         select performers.name, playson.instrument
+         from performers join playson on playson.performer = performers.id
+         join songs on songs.id = playson.song 
+         join albums on albums.id = songs.on_album
+         where songs.trackno = %s and albums.id = %s
+         order by performers.name asc
+         """
+         cur.execute(query2, [trackno, albumID])
+         entries2 = cur.fetchall()
+         # print(entries2)
+         if(len(entries2) != 0):
+            res = []
+            for name,instrument in entries2:
+               if name not in res:
+                  res.append(name)
+
+               # print("        "+str(name)+ ": " + str(instrument) )
+            # print(res)
+
+            for name_f in res:
+               print("        "+str(name_f)+":", end=" ")
+               query3 = """ 
+               select playson.instrument, performers.name
+               from playson join performers on playson.performer= performers.id    
+               join songs on songs.id = playson.song 
+               join albums on albums.id = songs.on_album
+               where songs.trackno = %s and albums.id = %s and performers.name = %s
+               order by playson.instrument asc
+               """ 
+               cur.execute(query3, [trackno, albumID, name_f])
+               entries3 = cur.fetchall()
+               if(len(entries3) == 1):
+                  for instrument, name in entries3:
+                     print(instrument, end ="")   
+               else:
+                  temp_string = ""
+                  for instrument, name in entries3:
+                     temp_string = temp_string + instrument + ","
+                     # print(instrument+",", end =" ")   
+                  print(temp_string[:-1])
+               print("")
+         else:
+            print("        The whole group")
+
+         # print("")
+   # ... your code goes here ...
+
+except psycopg2.Error as err:
+   print("DB error: ", err)
+finally:
+   if cur:
+       cur.close()
+   if db:
+      db.close()
+
